@@ -265,7 +265,7 @@ def main():
             os.mkdir('result')
         json_file = 'result/' + datetime.fromtimestamp(timestamp).strftime('%Y%m%d') + '.log'
         write_result(result, json_file)
-        if time.time() - hold_face_start > 2:
+        if time.time() - hold_face_start > 5:
             faces_match = faces_cur
             hold_face_start = time.time()
         else:
