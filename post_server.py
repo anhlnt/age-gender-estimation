@@ -4,18 +4,23 @@ from datetime import datetime
 import time
 import numpy as np
 import os
+import copy
 
 def get_devicekey():
     with open('DEVICE_KEY') as f:
         return f.read()
 
-POST_URL = 'https://project.vtmlab.com/facerecognition/api/ai_analysis'
+# POST_URL = 'https://project.vtmlab.com/facerecognition/api/ai_analysis'
+POST_URL = 'http://localhost/api/ai_analysis'
 DEVICE_KEY = get_devicekey()
 
 def clear_key(data):
     result = []
     for value in data.values():
-        value.pop("ages")
+        try:
+            value.pop("ages")
+        except:
+            pass
         value["device_key"] = DEVICE_KEY
         result.append(value)
     return result
@@ -45,13 +50,22 @@ def get_data(folder, start_line=1, interval=5):
                     break
                 print("Reading line ", i)
                 if time.time() - start > interval:
+                    data_tmp = copy.deepcopy(data)
                     post_data = clear_key(data)
                     if len(post_data) > 0:
                         res = post(POST_URL, post_data)
                         if res["status"]:
                             post_log(folder + "post.log", data_file, start_line_tmp, i - 1)
-                        start_line_tmp = i
-                        data = {}
+                            start_line_tmp = i
+                            data = {}
+                        else:
+                            time.sleep(sleep_time)
+                            start = time.time()
+                            if len(data) > 100:
+                                data = {}
+                            else:
+                                data = data_tmp
+                            continue
                     start = time.time()
                 if i >= start_line:
                     line = f.readline().strip()
@@ -83,12 +97,16 @@ def get_data(folder, start_line=1, interval=5):
 def post(url, data):
     print('Start post .......')
     print(json.dumps(data, indent=2))
-    response = requests.post(
-        url,
-        json.dumps(data),
-        headers={'Content-Type': 'application/json'})
-    print(json.dumps(response.json(), indent=2))
-    return response.json()
+    try:
+        response = requests.post(
+            url,
+            json.dumps(data),
+            headers={'Content-Type': 'application/json'})
+        print(json.dumps(response.json(), indent=2))
+        return response.json()
+    except:
+        print("Error")
+    return {"status": False}
 
 def post_log(logfile, read_file, start_line, end_line):
     if not os.path.exists(logfile):
