@@ -13,8 +13,8 @@ import match_face
 import json
 from datetime import datetime
 
-pretrained_model = "https://github.com/yu4u/age-gender-estimation/releases/download/v0.6/EfficientNetB3_224_weights.11-3.44.hdf5"
-modhash = '6d7f7b7ced093a8b3ef6399163da6ece'
+pretrained_model = "https://github.com/anhlnt/age-gender-estimation/releases/download/0.1/EfficientNetB3_224_weights.26-3.15.hdf5"
+modhash = '7f195bc97a0aa9418b4f97fa95a54658'
 
 
 def get_args():
@@ -176,13 +176,12 @@ def main():
 
 
     args = get_args()
-    # weight_file = args.weight_file
-    weight_file = "pretrained_models/EfficientNetB3_224_weights.22-3.15.hdf5"
+    weight_file = args.weight_file
     margin = args.margin
     image_dir = args.image_dir
 
     if not weight_file:
-        weight_file = get_file("EfficientNetB3_224_weights.11-3.44.hdf5", pretrained_model, cache_subdir="pretrained_models",
+        weight_file = get_file("EfficientNetB3_224_weights.26-3.15.hdf5", pretrained_model, cache_subdir="pretrained_models",
                                file_hash=modhash, cache_dir=str(Path(__file__).resolve().parent))
 
     # for face detection
