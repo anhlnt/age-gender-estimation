@@ -12,6 +12,17 @@ import match_face
 import json
 from datetime import datetime
 
+def get_faceid():
+    with open('FACE_ID', 'r') as f:
+        return int(f.read())
+
+def write_faceid(FACE_ID):
+    with open('FACE_ID', 'w') as f:
+        f.write(str(FACE_ID))
+
+
+FACE_ID = get_faceid()
+
 pretrained_model = "https://github.com/anhlnt/age-gender-estimation/releases/download/0.1/EfficientNetB3_224_weights.26-3.15.hdf5"
 modhash = '7f195bc97a0aa9418b4f97fa95a54658'
 
@@ -171,7 +182,7 @@ def main():
     start = time.time()
     hold_face_start = time.time()
     faces_match = []
-    face_id = 0
+    face_id = FACE_ID
 
     for img in image_generator:
         input_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -214,6 +225,7 @@ def main():
                 if match_id < 0:
                     match_id = face_id
                     face_id += 1
+                    write_faceid(face_id)
                 draw_label(img, (d.left(), d.bottom()), "id: " + str(match_id))
 
         result = []
