@@ -1,6 +1,5 @@
 opencv-python
 cmake
-dlib
 tensorflow
 scipy
 numpy

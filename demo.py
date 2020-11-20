@@ -1,6 +1,5 @@
 from pathlib import Path
 import cv2
-import dlib
 import numpy as np
 import argparse
 from contextlib import contextmanager
@@ -113,9 +112,7 @@ def detect_mask(frame, faceNet, maskNet=None):
 
 	# initialize our list of faces, their corresponding locations,
 	# and the list of predictions from our face mask network
-	faces = []
 	locs = []
-	preds = []
 
 	# loop over the detections
 	for i in range(0, detections.shape[2]):
@@ -137,31 +134,9 @@ def detect_mask(frame, faceNet, maskNet=None):
 			(startX, startY) = (max(0, startX), max(0, startY))
 			(endX, endY) = (min(w - 1, endX), min(h - 1, endY))
 
-			# extract the face ROI, convert it from BGR to RGB channel
-			# ordering, resize it to 224x224, and preprocess it
-			# face = frame[startY:endY, startX:endX]
-			# face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
-			# face = cv2.resize(face, (224, 224))
-			# face = img_to_array(face)
-			# face = preprocess_input(face)
-
-			# add the face and bounding boxes to their respective
-			# lists
-			# faces.append(face)
 			locs.append(Location(startX, startY, endX, endY))
 
-	# only make a predictions if at least one face was detected
-	# if len(faces) > 0:
-	# 	# for faster inference we'll make batch predictions on *all*
-	# 	# faces at the same time rather than one-by-one predictions
-	# 	# in the above `for` loop
-	# 	faces = np.array(faces, dtype="float32")
-	# 	preds = maskNet.predict(faces, batch_size=32)
-
-	# return a 2-tuple of the face locations and their corresponding
-	# locations
 	return locs
-	# return (locs, preds)
 
 def write_result(data, json_file):
     if len(data) > 0:
@@ -184,9 +159,6 @@ def main():
         weight_file = get_file("EfficientNetB3_224_weights.26-3.15.hdf5", pretrained_model, cache_subdir="pretrained_models",
                                file_hash=modhash, cache_dir=str(Path(__file__).resolve().parent))
 
-    # for face detection
-    detector = dlib.get_frontal_face_detector()
-
     # load model and weights
     model_name, img_size = Path(weight_file).stem.split("_")[:2]
     print('model_name: ', model_name, 'img_size: ', img_size)
@@ -194,10 +166,6 @@ def main():
     cfg = OmegaConf.from_dotlist([f"model.model_name={model_name}", f"model.img_size={img_size}"])
     model = get_model(cfg)
     model.load_weights(weight_file)
-
-    # import freeze_model
-    # freeze_model.main(model)
-    # return
 
     image_generator = yield_images_from_dir(image_dir) if image_dir else yield_images()
     start = time.time()
@@ -209,8 +177,6 @@ def main():
         input_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img_h, img_w, _ = np.shape(input_img)
 
-        # detect faces using dlib detector
-        # detected = detector(input_img, 1)
         detected = detect_mask(img, faceNet)
         faces = np.empty((len(detected), img_size, img_size, 3))
         
