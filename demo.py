@@ -159,6 +159,8 @@ def main():
     prototxtPath = os.path.sep.join(["face_detector", "deploy.prototxt"])
     weightsPath = os.path.sep.join(["face_detector", "res10_300x300_ssd_iter_140000.caffemodel"])
     faceNet = cv2.dnn.readNet(prototxtPath, weightsPath)
+    faceNet.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+    faceNet.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
 
 
     args = get_args()
