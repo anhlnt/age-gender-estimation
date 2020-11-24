@@ -18,7 +18,8 @@ def yield_images():
     with video_capture(0, cv2.CAP_V4L2) as cap:
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
-        time.sleep(1)
+        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+
         start = time.time()
         while True:
             # get video frame
