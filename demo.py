@@ -60,7 +60,7 @@ def video_capture(*args, **kwargs):
 
 def yield_images():
     # capture video
-    with video_capture(0) as cap:
+    with video_capture(0, cv2.CAP_V4L2) as cap:
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
