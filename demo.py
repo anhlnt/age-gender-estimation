@@ -168,7 +168,7 @@ def main():
     margin = args.margin
     image_dir = args.image_dir
 
-    if not weight_file and not os.path.exists('pretrained_models/EfficientNetB3_224_weights.26-3.15.hdf5'):
+    if not weight_file:
         weight_file = get_file("EfficientNetB3_224_weights.26-3.15.hdf5", pretrained_model, cache_subdir="pretrained_models",
                                file_hash=modhash, cache_dir=str(Path(__file__).resolve().parent))
 
