@@ -63,6 +63,8 @@ def yield_images():
     with video_capture(0, cv2.CAP_V4L2) as cap:
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
         while True:
             # get video frame
@@ -133,7 +135,7 @@ def detect_mask(frame, faceNet, maskNet=None):
 
 		# filter out weak detections by ensuring the confidence is
 		# greater than the minimum confidence
-		if confidence > 0.5:
+		if confidence > 0.7:
 		# if confidence > args["confidence"]:
 			# compute the (x, y)-coordinates of the bounding box for
 			# the object
@@ -190,7 +192,10 @@ def main():
         input_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img_h, img_w, _ = np.shape(input_img)
 
+        detect_start = time.time()
         detected = detect_mask(img, faceNet)
+        print("Detect time: {:.4f}, ".format(time.time() - detect_start), end='')
+
         faces = np.empty((len(detected), img_size, img_size, 3))
         
 
@@ -203,13 +208,15 @@ def main():
                 yw1 = max(int(y1 - margin * h), 0)
                 xw2 = min(int(x2 + margin * w), img_w - 1)
                 yw2 = min(int(y2 + margin * h), img_h - 1)
-                faces_detect.append(img[y1:y2 + 1, x1:x2 + 1])
+                faces_detect.append(cv2.resize(img[yw1:yw2 + 1, xw1:xw2 + 1], (img_size, img_size)))
                 cv2.rectangle(img, (x1, y1), (x2, y2), (255, 0, 0), 2)
                 # cv2.rectangle(img, (xw1, yw1), (xw2, yw2), (255, 0, 0), 2)
                 faces[i] = cv2.resize(img[yw1:yw2 + 1, xw1:xw2 + 1], (img_size, img_size))
 
             # predict ages and genders of the detected faces
+            predict_start = time.time()
             results = model.predict(faces)
+            print("Predict time: {:.4f}".format(time.time() - predict_start))
             predicted_genders = results[0]
             ages = np.arange(0, 101).reshape(101, 1)
             predicted_ages = results[1].dot(ages).flatten()
