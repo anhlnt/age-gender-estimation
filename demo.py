@@ -29,9 +29,10 @@ FACE_ID = get_faceid()
 
 pretrained_model = "https://github.com/anhlnt/age-gender-estimation/releases/download/0.1/EfficientNetB3_224_weights.26-3.15.hdf5"
 modhash = '7f195bc97a0aa9418b4f97fa95a54658'
+TENSORRT = True
 
 
-def convert_to_tensorrt():
+def convert_to_tensorrt(mode="INT8"):
     input_saved_model_dir = "pretrained_models/EfficientNetB3_224_weights.26-3.15"
     output_saved_model_dir = "pretrained_models/TensorRT/EfficientNetB3_224_weights.26-3.15"
 
@@ -39,22 +40,30 @@ def convert_to_tensorrt():
     conversion_params = trt.DEFAULT_TRT_CONVERSION_PARAMS
     conversion_params = conversion_params._replace(
         max_workspace_size_bytes=(1<<32))
-    conversion_params = conversion_params._replace(precision_mode="FP16")
-    conversion_params = conversion_params._replace(
-        maximum_cached_engines=100)
+    conversion_params = conversion_params._replace(precision_mode=mode)
+    # conversion_params = conversion_params._replace(
+    #     maximum_cached_engines=100)
     conversion_params = conversion_params._replace(
       max_batch_size=8)
 
     converter = trt.TrtGraphConverterV2(
         input_saved_model_dir=input_saved_model_dir,
         conversion_params=conversion_params)
-    converter.convert()
+    
+    def calibration_input_fn():
+        inp1 = np.random.normal(size=(8, 224, 224, 3)).astype(np.float32)
+        yield (inp1,)
+    if mode == 'INT8':
+        converter.convert(calibration_input_fn=calibration_input_fn)
+    else:
+        converter.convert()
+        
     print("[LOG] Successfully converted")
     def my_input_fn():
         # Input for a single inference call, for a network that has two input tensors:
-        inp1 = np.random.normal(size=(1, 224, 224, 3)).astype(np.float32)
+        inp1 = np.random.normal(size=(8, 224, 224, 3)).astype(np.float32)
         # inp2 = np.random.normal(size=(8, 16, 16, 3)).astype(np.float32)
-        yield inp1
+        yield (inp1, )
     converter.build(input_fn=my_input_fn)
     print("[LOG] Successfully build")
     converter.save(output_saved_model_dir)
@@ -210,16 +219,17 @@ def main():
     print('model_name: ', model_name, 'img_size: ', img_size)
     img_size = int(img_size)
     cfg = OmegaConf.from_dotlist([f"model.model_name={model_name}", f"model.img_size={img_size}"])
-    # model = get_model(cfg)
-    # model.load_weights(weight_file)
-
-    convert_to_tensorrt()
-    saved_model_loaded = tf.saved_model.load(
-        output_saved_model_dir, tags=[tag_constants.SERVING])
-    graph_func = saved_model_loaded.signatures[
-        signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
-    frozen_func = convert_to_constants.convert_variables_to_constants_v2(
-        graph_func)
+    if not TENSORRT:
+        model = get_model(cfg)
+        model.load_weights(weight_file)
+    else:
+        convert_to_tensorrt()
+        saved_model_loaded = tf.saved_model.load(
+            output_saved_model_dir, tags=[tag_constants.SERVING])
+        graph_func = saved_model_loaded.signatures[
+            signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
+        frozen_func = convert_to_constants.convert_variables_to_constants_v2(
+            graph_func)
 
     image_generator = yield_images_from_dir(image_dir) if image_dir else yield_images()
     start = time.time()
@@ -231,7 +241,10 @@ def main():
         input_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img_h, img_w, _ = np.shape(input_img)
 
+        detect_start = time.time()
         detected = detect_mask(img, faceNet)
+        print("Detect time: {:.4f}, ".format(time.time() - detect_start), end='')
+
         faces = np.empty((len(detected), img_size, img_size, 3))
         
 
@@ -244,18 +257,24 @@ def main():
                 yw1 = max(int(y1 - margin * h), 0)
                 xw2 = min(int(x2 + margin * w), img_w - 1)
                 yw2 = min(int(y2 + margin * h), img_h - 1)
-                faces_detect.append(img[y1:y2 + 1, x1:x2 + 1])
+                faces_detect.append(cv2.resize(img[yw1:yw2 + 1, xw1:xw2 + 1], (img_size, img_size)))
                 cv2.rectangle(img, (x1, y1), (x2, y2), (255, 0, 0), 2)
                 # cv2.rectangle(img, (xw1, yw1), (xw2, yw2), (255, 0, 0), 2)
                 faces[i] = cv2.resize(img[yw1:yw2 + 1, xw1:xw2 + 1], (img_size, img_size))
 
             # predict ages and genders of the detected faces
-            # results = model.predict(faces)
-            results = frozen_func(tf.constant(faces.astype(np.float32)))
-
-            predicted_genders = results[1].numpy()
+            predict_start = time.time()
             ages = np.arange(0, 101).reshape(101, 1)
-            predicted_ages = results[0].numpy().dot(ages).flatten()
+            if not TENSORRT:
+                results = model.predict(faces)
+                predicted_genders = results[0]
+                predicted_ages = results[1].dot(ages).flatten()
+            else:
+                results = frozen_func(tf.constant(faces.astype(np.float32)))
+                predicted_genders = results[1].numpy()
+                predicted_ages = results[0].numpy().dot(ages).flatten()
+            print("Predict time: {:.4f}".format(time.time() - predict_start))
+            
 
             
             # draw results
