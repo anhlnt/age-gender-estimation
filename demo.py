@@ -283,7 +283,7 @@ def main():
                 age = int(predicted_ages[i])
                 gender = 0 if predicted_genders[i][0] < 0.5 else 1
                 label = "{}, {}".format(int(predicted_ages[i]),
-                                        "Male" if predicted_genders[i][0] < 0.5 else "Female")
+                                        "男性" if predicted_genders[i][0] < 0.5 else "女性"")
                 draw_label(img, (d.left(), d.top()), label)
                 
                 match_id = match_face.match(faces_detect[i], faces_match, faces_cur, face_id, age, gender)
@@ -291,7 +291,7 @@ def main():
                     match_id = face_id
                     face_id += 1
                     write_faceid(face_id)
-                draw_label(img, (d.left(), d.bottom()), "id: " + str(match_id))
+                # draw_label(img, (d.left(), d.bottom()), "id: " + str(match_id))
 
         result = []
         timestamp = int(time.time())
@@ -314,7 +314,7 @@ def main():
         else:
             faces_match += faces_cur
 
-        draw_label(img, (50, 50), "{:.2f}fps".format(1.0 / (time.time() - start)))
+        # draw_label(img, (50, 50), "{:.2f}fps".format(1.0 / (time.time() - start)))
         cv2.namedWindow("result", cv2.WINDOW_NORMAL)
         cv2.imshow("result", img)
         key = cv2.waitKey(-1) if image_dir else cv2.waitKey(30)
