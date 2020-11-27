@@ -283,7 +283,7 @@ def main():
                 age = int(predicted_ages[i])
                 gender = 0 if predicted_genders[i][0] < 0.5 else 1
                 label = "{}, {}".format(int(predicted_ages[i]),
-                                        "男性" if predicted_genders[i][0] < 0.5 else "女性"")
+                                        "男性" if predicted_genders[i][0] < 0.5 else "女性")
                 draw_label(img, (d.left(), d.top()), label)
                 
                 match_id = match_face.match(faces_detect[i], faces_match, faces_cur, face_id, age, gender)
