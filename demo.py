@@ -29,7 +29,7 @@ FACE_ID = get_faceid()
 
 pretrained_model = "https://github.com/anhlnt/age-gender-estimation/releases/download/0.1/EfficientNetB3_224_weights.26-3.15.hdf5"
 modhash = '7f195bc97a0aa9418b4f97fa95a54658'
-TENSORRT = True
+TENSORRT = False
 
 
 def convert_to_tensorrt(mode="INT8"):
@@ -204,7 +204,8 @@ def main():
 
 
     args = get_args()
-    weight_file = args.weight_file
+    # weight_file = args.weight_file
+    weight_file = "pretrained_models/MobileNetV2_224_weights.57-3.31.hdf5"
     margin = args.margin
     image_dir = args.image_dir
 
@@ -314,6 +315,7 @@ def main():
             faces_match += faces_cur
 
         draw_label(img, (50, 50), "{:.2f}fps".format(1.0 / (time.time() - start)))
+        cv2.namedWindow("result", cv2.WINDOW_NORMAL)
         cv2.imshow("result", img)
         key = cv2.waitKey(-1) if image_dir else cv2.waitKey(30)
 
