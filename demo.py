@@ -102,9 +102,11 @@ def video_capture(*args, **kwargs):
 
 def yield_images():
     # capture video
-    with video_capture(0) as cap:
+    with video_capture(0, cv2.CAP_V4L2) as cap:
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+        cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
         while True:
             # get video frame
@@ -175,7 +177,7 @@ def detect_mask(frame, faceNet, maskNet=None):
 
 		# filter out weak detections by ensuring the confidence is
 		# greater than the minimum confidence
-		if confidence > 0.5:
+		if confidence > 0.7:
 		# if confidence > args["confidence"]:
 			# compute the (x, y)-coordinates of the bounding box for
 			# the object
@@ -201,6 +203,8 @@ def main():
     prototxtPath = os.path.sep.join(["face_detector", "deploy.prototxt"])
     weightsPath = os.path.sep.join(["face_detector", "res10_300x300_ssd_iter_140000.caffemodel"])
     faceNet = cv2.dnn.readNet(prototxtPath, weightsPath)
+    faceNet.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+    faceNet.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
 
 
     args = get_args()
