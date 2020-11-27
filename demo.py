@@ -235,7 +235,7 @@ def main():
                     match_id = face_id
                     face_id += 1
                     write_faceid(face_id)
-                draw_label(img, (d.left(), d.bottom()), "id: " + str(match_id))
+                # draw_label(img, (d.left(), d.bottom()), "id: " + str(match_id))
 
         result = []
         timestamp = int(time.time())
