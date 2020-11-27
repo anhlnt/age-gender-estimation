@@ -11,6 +11,10 @@ import time
 import match_face
 import json
 from datetime import datetime
+import tensorflow as tf
+from tensorflow.python.compiler.tensorrt import trt_convert as trt
+from tensorflow.compat.v1.saved_model import tag_constants, signature_constants
+from tensorflow.python.framework import convert_to_constants
 
 def get_faceid():
     with open('FACE_ID', 'r') as f:
@@ -25,7 +29,45 @@ FACE_ID = get_faceid()
 
 pretrained_model = "https://github.com/anhlnt/age-gender-estimation/releases/download/0.1/EfficientNetB3_224_weights.26-3.15.hdf5"
 modhash = '7f195bc97a0aa9418b4f97fa95a54658'
+TENSORRT = False
 
+
+def convert_to_tensorrt(mode="INT8"):
+    input_saved_model_dir = "pretrained_models/EfficientNetB3_224_weights.26-3.15"
+    output_saved_model_dir = "pretrained_models/TensorRT/EfficientNetB3_224_weights.26-3.15"
+
+
+    conversion_params = trt.DEFAULT_TRT_CONVERSION_PARAMS
+    conversion_params = conversion_params._replace(
+        max_workspace_size_bytes=(1<<32))
+    conversion_params = conversion_params._replace(precision_mode=mode)
+    # conversion_params = conversion_params._replace(
+    #     maximum_cached_engines=100)
+    conversion_params = conversion_params._replace(
+      max_batch_size=8)
+
+    converter = trt.TrtGraphConverterV2(
+        input_saved_model_dir=input_saved_model_dir,
+        conversion_params=conversion_params)
+    
+    def calibration_input_fn():
+        inp1 = np.random.normal(size=(8, 224, 224, 3)).astype(np.float32)
+        yield (inp1,)
+    if mode == 'INT8':
+        converter.convert(calibration_input_fn=calibration_input_fn)
+    else:
+        converter.convert()
+        
+    print("[LOG] Successfully converted")
+    def my_input_fn():
+        # Input for a single inference call, for a network that has two input tensors:
+        inp1 = np.random.normal(size=(8, 224, 224, 3)).astype(np.float32)
+        # inp2 = np.random.normal(size=(8, 16, 16, 3)).astype(np.float32)
+        yield (inp1, )
+    converter.build(input_fn=my_input_fn)
+    print("[LOG] Successfully build")
+    converter.save(output_saved_model_dir)
+    print("[LOG] Successfully saved TensorRT Model")
 
 def get_args():
     parser = argparse.ArgumentParser(description="This script detects faces from web cam input, "
@@ -162,10 +204,13 @@ def main():
 
 
     args = get_args()
-    weight_file = args.weight_file
+    # weight_file = args.weight_file
+    weight_file = "pretrained_models/MobileNetV2_224_weights.57-3.31.hdf5"
     margin = args.margin
     image_dir = args.image_dir
 
+    output_saved_model_dir = "pretrained_models/TensorRT/EfficientNetB3_224_weights.26-3.15"
+    
     if not weight_file:
         weight_file = get_file("EfficientNetB3_224_weights.26-3.15.hdf5", pretrained_model, cache_subdir="pretrained_models",
                                file_hash=modhash, cache_dir=str(Path(__file__).resolve().parent))
@@ -175,8 +220,17 @@ def main():
     print('model_name: ', model_name, 'img_size: ', img_size)
     img_size = int(img_size)
     cfg = OmegaConf.from_dotlist([f"model.model_name={model_name}", f"model.img_size={img_size}"])
-    model = get_model(cfg)
-    model.load_weights(weight_file)
+    if not TENSORRT:
+        model = get_model(cfg)
+        model.load_weights(weight_file)
+    else:
+        convert_to_tensorrt()
+        saved_model_loaded = tf.saved_model.load(
+            output_saved_model_dir, tags=[tag_constants.SERVING])
+        graph_func = saved_model_loaded.signatures[
+            signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY]
+        frozen_func = convert_to_constants.convert_variables_to_constants_v2(
+            graph_func)
 
     image_generator = yield_images_from_dir(image_dir) if image_dir else yield_images()
     start = time.time()
@@ -188,7 +242,10 @@ def main():
         input_img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         img_h, img_w, _ = np.shape(input_img)
 
+        detect_start = time.time()
         detected = detect_mask(img, faceNet)
+        print("Detect time: {:.4f}, ".format(time.time() - detect_start), end='')
+
         faces = np.empty((len(detected), img_size, img_size, 3))
         
 
@@ -207,10 +264,18 @@ def main():
                 faces[i] = cv2.resize(img[yw1:yw2 + 1, xw1:xw2 + 1], (img_size, img_size))
 
             # predict ages and genders of the detected faces
-            results = model.predict(faces)
-            predicted_genders = results[0]
+            predict_start = time.time()
             ages = np.arange(0, 101).reshape(101, 1)
-            predicted_ages = results[1].dot(ages).flatten()
+            if not TENSORRT:
+                results = model.predict(faces)
+                predicted_genders = results[0]
+                predicted_ages = results[1].dot(ages).flatten()
+            else:
+                results = frozen_func(tf.constant(faces.astype(np.float32)))
+                predicted_genders = results[1].numpy()
+                predicted_ages = results[0].numpy().dot(ages).flatten()
+            print("Predict time: {:.4f}".format(time.time() - predict_start))
+            
 
             
             # draw results
@@ -250,6 +315,7 @@ def main():
             faces_match += faces_cur
 
         draw_label(img, (50, 50), "{:.2f}fps".format(1.0 / (time.time() - start)))
+        cv2.namedWindow("result", cv2.WINDOW_NORMAL)
         cv2.imshow("result", img)
         key = cv2.waitKey(-1) if image_dir else cv2.waitKey(30)
 
