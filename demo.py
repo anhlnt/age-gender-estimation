@@ -18,6 +18,9 @@ from tensorflow.python.framework import convert_to_constants
 import platform
 import convert_savedmodel
 import pyglet
+import imutils
+from imutils.video import WebcamVideoStream
+
 
 
 def get_faceid():
@@ -121,18 +124,25 @@ def video_capture(*args, **kwargs):
 def yield_images():
     # capture video
     if platform.uname().machine == 'x86_64':
-        with video_capture(0) as cap:
-            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        vs = WebcamVideoStream(src=0).start()
+        while True:
+            frame = vs.read()
+            frame = imutils.resize(frame, width=680)
+            yield frame
+        # with video_capture(0) as cap:
+        #     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        #     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+        #     cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('H', '2', '6', '4'))
 
-            while True:
-                # get video frame
-                ret, img = cap.read()
 
-                if not ret:
-                    raise RuntimeError("Failed to capture image")
+        #     while True:
+        #         # get video frame
+        #         ret, img = cap.read()
 
-                yield img
+        #         if not ret:
+        #             raise RuntimeError("Failed to capture image")
+
+        #         yield img
     elif platform.uname().machine == 'aarch64':
         with video_capture(0, cv2.CAP_V4L2) as cap:
             cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)

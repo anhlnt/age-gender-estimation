@@ -109,3 +109,4 @@ ENV/
 
 demo_only_opencv.py
 FACE_ID
+fps_demo.py
