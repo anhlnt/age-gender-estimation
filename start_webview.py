@@ -1,3 +1,3 @@
 import webview
-webview.create_window('VTM AI', 'localhost')
+webview.create_window('VTM AI', url='http://localhost')
 webview.start()

@@ -14,13 +14,13 @@ def match(face, faces, faces_cur, id_cur, age, gender):
         for i in range(len(faces)):
             matchPoint.append(match_point(faces[i][0], face))
         argmax = np.argmax(matchPoint)
-        print(matchPoint[argmax])
+        # print(matchPoint[argmax])
         if matchPoint[argmax] > 45:
             idx = faces[argmax][1]
             faces_cur.append((face, idx, age, gender))
             faces.pop(argmax)
         else:
-            print("matchPoint　が低すぎ", matchPoint[argmax])
+            # print("matchPoint　が低すぎ", matchPoint[argmax])
             faces_cur.append((face, idx, age, gender))
             return -1
     else:
