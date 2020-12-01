@@ -17,6 +17,8 @@ from tensorflow.compat.v1.saved_model import tag_constants, signature_constants
 from tensorflow.python.framework import convert_to_constants
 
 def get_faceid():
+    if not os.path.exists('FACE_ID'):
+        return 0
     with open('FACE_ID', 'r') as f:
         return int(f.read())
 
@@ -29,7 +31,6 @@ FACE_ID = get_faceid()
 
 pretrained_model = "https://github.com/anhlnt/age-gender-estimation/releases/download/0.1/EfficientNetB3_224_weights.26-3.15.hdf5"
 modhash = '7f195bc97a0aa9418b4f97fa95a54658'
-TENSORRT = False
 
 
 def convert_to_tensorrt(mode="INT8"):
@@ -79,6 +80,10 @@ def get_args():
                         help="margin around detected face for age-gender estimation")
     parser.add_argument("--image_dir", type=str, default=None,
                         help="target image directory; if set, images in image_dir are used instead of webcam")
+    parser.add_argument("--debug", action="store_true",
+                        help="If True, enter debug mode")
+    parser.add_argument("--tensorrt", action="store_true",
+                        help="If True, optimize with TensorRT")
     args = parser.parse_args()
     return args
 
@@ -220,7 +225,7 @@ def main():
     print('model_name: ', model_name, 'img_size: ', img_size)
     img_size = int(img_size)
     cfg = OmegaConf.from_dotlist([f"model.model_name={model_name}", f"model.img_size={img_size}"])
-    if not TENSORRT:
+    if not args.tensorrt:
         model = get_model(cfg)
         model.load_weights(weight_file)
     else:
@@ -266,7 +271,7 @@ def main():
             # predict ages and genders of the detected faces
             predict_start = time.time()
             ages = np.arange(0, 101).reshape(101, 1)
-            if not TENSORRT:
+            if not args.tensorrt:
                 results = model.predict(faces)
                 predicted_genders = results[0]
                 predicted_ages = results[1].dot(ages).flatten()
@@ -291,7 +296,8 @@ def main():
                     match_id = face_id
                     face_id += 1
                     write_faceid(face_id)
-                # draw_label(img, (d.left(), d.bottom()), "id: " + str(match_id))
+                if args.debug:
+                    draw_label(img, (d.left(), d.bottom()), "id: " + str(match_id))
 
         result = []
         timestamp = int(time.time())
@@ -314,7 +320,8 @@ def main():
         else:
             faces_match += faces_cur
 
-        # draw_label(img, (50, 50), "{:.2f}fps".format(1.0 / (time.time() - start)))
+        if args.debug:
+            draw_label(img, (50, 50), "{:.2f}fps".format(1.0 / (time.time() - start)))
         cv2.namedWindow("result", cv2.WINDOW_NORMAL)
         cv2.imshow("result", img)
         key = cv2.waitKey(-1) if image_dir else cv2.waitKey(30)
