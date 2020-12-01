@@ -354,9 +354,15 @@ def main():
             for i, d in enumerate(detected):
                 age = int(predicted_ages[i])
                 gender = 0 if predicted_genders[i][0] < 0.5 else 1
-                label = "{}, {}".format(int(predicted_ages[i]),
-                                        "Male" if predicted_genders[i][0] < 0.5 else "Female")
-                draw_label(img, (d.left(), d.top()), label)
+                label_age = str(age)
+                label_gender = "Male" if predicted_genders[i][0] < 0.5 else "Female"
+                label = "{}, {}".format(label_age, label_gender)
+
+                if args.debug:
+                    draw_label(img, (d.left(), d.top()), label)
+                else:
+                    draw_label(img, (d.left(), d.top()), label_age)
+                    draw_label(img, (d.left(), d.bottom() + 20), label_gender)
                 
                 match_id = match_face.match(faces_detect[i], faces_match, faces_cur, face_id, age, gender)
                 if match_id < 0:
