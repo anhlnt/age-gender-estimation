@@ -30,8 +30,7 @@ def write_faceid(FACE_ID):
 
 FACE_ID = get_faceid()
 
-pretrained_model = "https://github.com/anhlnt/age-gender-estimation/releases/download/0.1/EfficientNetB3_224_weights.26-3.15.hdf5"
-modhash = '7f195bc97a0aa9418b4f97fa95a54658'
+pretrained_model = "https://github.com/anhlnt/age-gender-estimation/releases/download/0.1/"
 
 
 def convert_to_tensorrt(mode="INT8"):
@@ -77,6 +76,7 @@ def get_args():
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("--weight_file", type=str, default=None,
                         help="path to weight file (e.g. weights.28-3.73.hdf5)")
+    parser.add_argument("--model", choices=['EfficientNetB3', 'EfficientNetB0', 'MobileNetV2'], default='MobileNetV2')
     parser.add_argument("--margin", type=float, default=0.4,
                         help="margin around detected face for age-gender estimation")
     parser.add_argument("--image_dir", type=str, default=None,
@@ -223,16 +223,24 @@ def main():
 
 
     args = get_args()
-    # weight_file = args.weight_file
-    weight_file = "pretrained_models/MobileNetV2_224_weights.57-3.31.hdf5"
+    weight_file = args.weight_file
+    # weight_file = "pretrained_models/MobileNetV2_224_weights.57-3.31.hdf5"
     margin = args.margin
     image_dir = args.image_dir
 
     output_saved_model_dir = "pretrained_models/TensorRT/EfficientNetB3_224_weights.26-3.15"
     
     if not weight_file:
-        weight_file = get_file("EfficientNetB3_224_weights.26-3.15.hdf5", pretrained_model, cache_subdir="pretrained_models",
-                               file_hash=modhash, cache_dir=str(Path(__file__).resolve().parent))
+        if args.model == "EfficientNetB3":
+            model_file = "EfficientNetB3_224_weights.26-3.15.hdf5"
+        elif args.model == "EfficientNetB0":
+            model_file = "EfficientNetB0_224_weights.30-3.22.hdf5"
+        else:
+            model_file = "MobileNetV2_224_weights.57-3.31.hdf5"
+
+        weight_file = get_file(model_file, pretrained_model + model_file, cache_subdir="pretrained_models",
+                            cache_dir=str(Path(__file__).resolve().parent))
+
 
     # load model and weights
     model_name, img_size = Path(weight_file).stem.split("_")[:2]
