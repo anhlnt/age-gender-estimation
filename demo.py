@@ -16,6 +16,7 @@ from tensorflow.python.compiler.tensorrt import trt_convert as trt
 from tensorflow.compat.v1.saved_model import tag_constants, signature_constants
 from tensorflow.python.framework import convert_to_constants
 import platform
+import convert_savedmodel
 
 def get_faceid():
     if not os.path.exists('FACE_ID'):
@@ -33,10 +34,7 @@ FACE_ID = get_faceid()
 pretrained_model = "https://github.com/anhlnt/age-gender-estimation/releases/download/0.1/"
 
 
-def convert_to_tensorrt(mode="INT8"):
-    input_saved_model_dir = "pretrained_models/EfficientNetB3_224_weights.26-3.15"
-    output_saved_model_dir = "pretrained_models/TensorRT/EfficientNetB3_224_weights.26-3.15"
-
+def convert_to_tensorrt(input_saved_model_dir, output_saved_model_dir, mode="INT8"):
 
     conversion_params = trt.DEFAULT_TRT_CONVERSION_PARAMS
     conversion_params = conversion_params._replace(
@@ -85,6 +83,8 @@ def get_args():
                         help="If True, enter debug mode")
     parser.add_argument("--tensorrt", action="store_true",
                         help="If True, optimize with TensorRT")
+    parser.add_argument("--tensorrt_mode", choices=['FP16', 'INT8'], default='FP16',
+                        help="TensorRT Model")
     args = parser.parse_args()
     return args
 
@@ -237,8 +237,6 @@ def main():
     margin = args.margin
     image_dir = args.image_dir
 
-    output_saved_model_dir = "pretrained_models/TensorRT/EfficientNetB3_224_weights.26-3.15"
-    
     if not weight_file:
         if args.model == "EfficientNetB3":
             model_file = "EfficientNetB3_224_weights.26-3.15.hdf5"
@@ -260,7 +258,14 @@ def main():
         model = get_model(cfg)
         model.load_weights(weight_file)
     else:
-        convert_to_tensorrt()
+        input_saved_model_dir, _ = os.path.splitext(weight_file)
+        output_saved_model_dir = input_saved_model_dir + "-TensorRT-" + args.tensorrt_mode
+        if not os.path.exists(input_saved_model_dir):
+            model = get_model(cfg)
+            model.load_weights(weight_file)
+            convert_savedmodel.saveModel(model, input_saved_model_dir)
+        if not os.path.exists(output_saved_model_dir):
+            convert_to_tensorrt(input_saved_model_dir, output_saved_model_dir, mode=args.tensorrt_mode)
         saved_model_loaded = tf.saved_model.load(
             output_saved_model_dir, tags=[tag_constants.SERVING])
         graph_func = saved_model_loaded.signatures[
