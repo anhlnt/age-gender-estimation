@@ -37,6 +37,10 @@ def get_data(folder, start_line=1, interval=5):
     while True:
         day = datetime.fromtimestamp(time.time()).strftime("%Y%m%d")
         data_file = folder + day + '.log'
+        if not os.path.exists(data_file):
+            print("Log file is not exist")
+            time.sleep(5)
+            continue
         with open(data_file, "r") as f:
             print("Read file: ", data_file)
             start = time.time()
