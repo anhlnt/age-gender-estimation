@@ -304,6 +304,7 @@ def main():
 
         faces_cur = []
         faces_detect = []
+        error = False
         if len(detected) > 0:
             for i, d in enumerate(detected):
                 x1, y1, x2, y2, w, h = d.left(), d.top(), d.right() + 1, d.bottom() + 1, d.width(), d.height()
@@ -311,11 +312,19 @@ def main():
                 yw1 = max(int(y1 - margin * h), 0)
                 xw2 = min(int(x2 + margin * w), img_w - 1)
                 yw2 = min(int(y2 + margin * h), img_h - 1)
-                faces_detect.append(cv2.resize(img[yw1:yw2 + 1, xw1:xw2 + 1], (img_size, img_size)))
+                try:
+                    face = cv2.resize(img[yw1:yw2 + 1, xw1:xw2 + 1], (img_size, img_size))
+                except Exception as e:
+                    print(e)
+                    error = True
+                    break
+                # face = cv2.resize(img[yw1:yw2 + 1, xw1:xw2 + 1], (img_size, img_size))
+                faces_detect.append(face)
                 cv2.rectangle(img, (x1, y1), (x2, y2), (255, 0, 0), 2)
                 # cv2.rectangle(img, (xw1, yw1), (xw2, yw2), (255, 0, 0), 2)
-                faces[i] = cv2.resize(img[yw1:yw2 + 1, xw1:xw2 + 1], (img_size, img_size))
-
+                faces[i] = face
+            if error:
+                continue
             # predict ages and genders of the detected faces
             predict_start = time.time()
             ages = np.arange(0, 101).reshape(101, 1)
@@ -370,7 +379,7 @@ def main():
 
         if args.debug:
             draw_label(img, (50, 50), "{:.2f}fps".format(1.0 / (time.time() - start)))
-        windowName = "result"
+        windowName = "VTM AI"
         cv2.namedWindow(windowName, cv2.WINDOW_NORMAL)
         cv2.moveWindow(windowName, 0, 0)
         cv2.resizeWindow(windowName, SCREENSIZE[0] // 2, SCREENSIZE[1])
