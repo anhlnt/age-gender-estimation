@@ -15,6 +15,7 @@ import tensorflow as tf
 from tensorflow.python.compiler.tensorrt import trt_convert as trt
 from tensorflow.compat.v1.saved_model import tag_constants, signature_constants
 from tensorflow.python.framework import convert_to_constants
+import platform
 
 def get_faceid():
     if not os.path.exists('FACE_ID'):
@@ -107,18 +108,27 @@ def video_capture(*args, **kwargs):
 
 def yield_images():
     # capture video
-    with video_capture(0) as cap:
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+    if platform.uname().machine == 'x86_64':
+        with video_capture(0) as cap:
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
 
-        while True:
-            # get video frame
-            ret, img = cap.read()
+            while True:
+                # get video frame
+                ret, img = cap.read()
 
-            if not ret:
-                raise RuntimeError("Failed to capture image")
+                if not ret:
+                    raise RuntimeError("Failed to capture image")
 
-            yield img
+                yield img
+    elif platform.uname().machine == 'aarch64':
+        with video_capture(0, cv2.CAP_V4L2) as cap:
+            cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+            cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
+            cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+            cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+
+
 
 
 def yield_images_from_dir(image_dir):
@@ -206,6 +216,10 @@ def main():
     prototxtPath = os.path.sep.join(["face_detector", "deploy.prototxt"])
     weightsPath = os.path.sep.join(["face_detector", "res10_300x300_ssd_iter_140000.caffemodel"])
     faceNet = cv2.dnn.readNet(prototxtPath, weightsPath)
+    if platform.uname().machine == 'aarch64':
+        faceNet.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+        faceNet.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
+
 
 
     args = get_args()
