@@ -17,6 +17,8 @@ from tensorflow.compat.v1.saved_model import tag_constants, signature_constants
 from tensorflow.python.framework import convert_to_constants
 import platform
 import convert_savedmodel
+import pyglet
+
 
 def get_faceid():
     if not os.path.exists('FACE_ID'):
@@ -28,17 +30,27 @@ def write_faceid(FACE_ID):
     with open('FACE_ID', 'w') as f:
         f.write(str(FACE_ID))
 
+def getScreenSize():
+    display = pyglet.canvas.Display()
+    screen = display.get_default_screen()
+    return (screen.width, screen.height)
+
 
 FACE_ID = get_faceid()
+SCREENSIZE = getScreenSize()
 
 pretrained_model = "https://github.com/anhlnt/age-gender-estimation/releases/download/0.1/"
 
 
 def convert_to_tensorrt(input_saved_model_dir, output_saved_model_dir, mode="INT8"):
+    if platform.uname().machine == 'x86_64':
+        max_workspace_size_bytes = 1<<32
+    else:
+        max_workspace_size_bytes = 1<<30
 
     conversion_params = trt.DEFAULT_TRT_CONVERSION_PARAMS
     conversion_params = conversion_params._replace(
-        max_workspace_size_bytes=(1<<32))
+        max_workspace_size_bytes=max_workspace_size_bytes)
     conversion_params = conversion_params._replace(precision_mode=mode)
     # conversion_params = conversion_params._replace(
     #     maximum_cached_engines=100)
@@ -222,6 +234,8 @@ def write_result(data, json_file):
 
 
 def main():
+    args = get_args()
+
     prototxtPath = os.path.sep.join(["face_detector", "deploy.prototxt"])
     weightsPath = os.path.sep.join(["face_detector", "res10_300x300_ssd_iter_140000.caffemodel"])
     faceNet = cv2.dnn.readNet(prototxtPath, weightsPath)
@@ -230,8 +244,6 @@ def main():
         faceNet.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
 
 
-
-    args = get_args()
     weight_file = args.weight_file
     # weight_file = "pretrained_models/MobileNetV2_224_weights.57-3.31.hdf5"
     margin = args.margin
@@ -358,8 +370,11 @@ def main():
 
         if args.debug:
             draw_label(img, (50, 50), "{:.2f}fps".format(1.0 / (time.time() - start)))
-        cv2.namedWindow("result", cv2.WINDOW_NORMAL)
-        cv2.imshow("result", img)
+        windowName = "result"
+        cv2.namedWindow(windowName, cv2.WINDOW_NORMAL)
+        cv2.moveWindow(windowName, 0, 0)
+        cv2.resizeWindow(windowName, SCREENSIZE[0] // 2, SCREENSIZE[1])
+        cv2.imshow(windowName, img)
         key = cv2.waitKey(-1) if image_dir else cv2.waitKey(30)
 
         if key == 27:  # ESC
