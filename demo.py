@@ -128,6 +128,15 @@ def yield_images():
             cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
             cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
+            while True:
+                # get video frame
+                ret, img = cap.read()
+
+                if not ret:
+                    raise RuntimeError("Failed to capture image")
+
+                yield img
+
 
 
 
