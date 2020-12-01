@@ -13,3 +13,4 @@ omegaconf
 python-Levenshtein
 Pillow
 pyglet
+pywebview
